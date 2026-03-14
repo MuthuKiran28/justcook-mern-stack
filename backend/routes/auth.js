@@ -5,15 +5,65 @@ import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
+<<<<<<< HEAD
 // Register a user
 router.post("/register", async (req, res) => {
   const { username, email, password } = req.body;
+=======
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const authAttempts = new Map();
+const AUTH_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_MAX_ATTEMPTS = 25;
+
+const authRateLimit = (req, res, next) => {
+  const key = req.ip || "unknown";
+  const now = Date.now();
+  const record = authAttempts.get(key) || { count: 0, resetAt: now + AUTH_WINDOW_MS };
+
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + AUTH_WINDOW_MS;
+  }
+
+  record.count += 1;
+  authAttempts.set(key, record);
+
+  if (record.count > AUTH_MAX_ATTEMPTS) {
+    return res
+      .status(429)
+      .json({ message: "Too many authentication attempts. Please try again later." });
+  }
+
+  return next();
+};
+
+const isValidPassword = (password) => typeof password === "string" && password.length >= 8;
+
+// Register a user
+router.post("/register", authRateLimit, async (req, res) => {
+  const username = (req.body.username || "").trim();
+  const email = (req.body.email || "").trim().toLowerCase();
+  const password = req.body.password;
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
 
   try {
     if (!username || !email || !password) {
       return res.status(400).json({ message: "Please fill all fields" });
     }
 
+<<<<<<< HEAD
+=======
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ message: "Please enter a valid email" });
+    }
+
+    if (!isValidPassword(password)) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters long" });
+    }
+
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({
@@ -23,40 +73,72 @@ router.post("/register", async (req, res) => {
 
     const user = await User.create({ username, email, password });
     const token = generateToken(user._id);
+<<<<<<< HEAD
     res.status(201).json({
+=======
+    return res.status(201).json({
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
       _id: user._id,
       username: user.username,
       email: user.email,
       token,
     });
   } catch (err) {
+<<<<<<< HEAD
     res.status(500).json({ message: "Server error" });
+=======
+    return res.status(500).json({ message: "Server error" });
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
   }
 });
 
 // Login
+<<<<<<< HEAD
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
+=======
+router.post("/login", authRateLimit, async (req, res) => {
+  const email = (req.body.email || "").trim().toLowerCase();
+  const password = req.body.password;
+
+  try {
+    if (!EMAIL_REGEX.test(email) || typeof password !== "string") {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
     const user = await User.findOne({ email });
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
     const token = generateToken(user._id);
+<<<<<<< HEAD
     res.json({
+=======
+    return res.json({
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
       _id: user._id,
       username: user.username,
       email: user.email,
       token,
     });
   } catch (err) {
+<<<<<<< HEAD
     res.status(500).json({ message: "Server error" });
+=======
+    return res.status(500).json({ message: "Server error" });
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
   }
 });
 
 router.get("/me", protect, async (req, res) => {
+<<<<<<< HEAD
   res.status(200).json(req.user);
+=======
+  return res.status(200).json(req.user);
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
 });
 
 // Generate JWT

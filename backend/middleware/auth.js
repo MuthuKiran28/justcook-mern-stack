@@ -15,6 +15,13 @@ export const protect = async (req, res, next) => {
 
       req.user = await User.findById(decoded.id).select("-password");
 
+<<<<<<< HEAD
+=======
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authorized" });
+      }
+
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
       return next();
     } catch (error) {
       console.error("Token verfication failed: ", error.message);

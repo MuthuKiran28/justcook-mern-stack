@@ -2,9 +2,17 @@ import React, { useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
+<<<<<<< HEAD
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
 
+=======
+const buttonClass =
+  "inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100";
+
+const Navbar = () => {
+  const { user, logout } = useContext(AuthContext);
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -13,6 +21,7 @@ const Navbar = () => {
   };
 
   return (
+<<<<<<< HEAD
     <nav className="bg-white shadow-md p-4">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <Link to="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
@@ -72,6 +81,38 @@ const Navbar = () => {
                   </svg>
                   Register
                 </button>
+=======
+    <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <Link to="/" className="flex items-center gap-2 no-underline">
+          <img
+            src="/JUST COOK LOGO2.png"
+            alt="JUST COOK Logo"
+            className="h-10 w-10 rounded object-contain"
+          />
+          <h1 className="text-base font-bold tracking-wide text-slate-900 sm:text-lg">
+            JUST COOK RECIPE
+          </h1>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          {user ? (
+            <>
+              <Link to="/add-recipe" className={buttonClass}>
+                Add Recipe
+              </Link>
+              <button onClick={handleLogout} className={buttonClass} type="button">
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className={buttonClass}>
+                Login
+              </Link>
+              <Link to="/register" className={buttonClass}>
+                Register
+>>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
               </Link>
             </>
           )}
