@@ -17,10 +17,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    favorites: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Recipe",
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 userSchema.pre("save", async function (next) {

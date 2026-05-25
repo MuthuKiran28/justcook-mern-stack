@@ -11,6 +11,7 @@ const EditRecipe = () => {
     photoUrl: "",
     cookingTime: "",
   });
+
   const { id } = useParams();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,34 +25,26 @@ const EditRecipe = () => {
     const newIngredients = [...formData.ingredients];
     newIngredients[index] = value;
     handleInputChange("ingredients", newIngredients);
-    const lastIngredient =
-      formData.ingredients[formData.ingredients.length - 1];
-    if (error && lastIngredient.trim() !== "") {
-      setError("");
-    }
   };
 
   const addIngredient = () => {
     const lastIngredient =
       formData.ingredients[formData.ingredients.length - 1];
-    if (lastIngredient.trim() !== "") {
-      setError("");
-      handleInputChange("ingredients", [...formData.ingredients, ""]);
-    } else {
+
+    if (lastIngredient.trim() === "") {
       setError("Please fill in the last ingredient before adding a new one");
+      return;
     }
+
+    setError("");
+    handleInputChange("ingredients", [...formData.ingredients, ""]);
   };
 
   const removeIngredient = (index) => {
-    if (formData.ingredients.length > 1) {
-      const newIngredients = formData.ingredients.filter((_, i) => i !== index);
-      handleInputChange("ingredients", newIngredients);
-      const lastIngredient =
-        formData.ingredients[formData.ingredients.length - 1];
-      if (error && lastIngredient.trim() !== "") {
-        setError("");
-      }
-    }
+    if (formData.ingredients.length === 1) return;
+
+    const newIngredients = formData.ingredients.filter((_, i) => i !== index);
+    handleInputChange("ingredients", newIngredients);
   };
 
   const handleSubmit = async (e) => {
@@ -70,14 +63,11 @@ const EditRecipe = () => {
           ? Number(formData.cookingTime)
           : undefined,
       });
+
       navigate("/");
-<<<<<<< HEAD
     } catch (err) {
-      setError("Failed to add recipe");
-=======
-    } catch {
+      console.error(err);
       setError("Failed to update recipe");
->>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
     } finally {
       setLoading(false);
     }
@@ -85,29 +75,37 @@ const EditRecipe = () => {
 
   useEffect(() => {
     const fetchRecipe = async () => {
-      const res = await axios.get(`/api/recipes/${id}`);
-      setFormData({
-        title: res.data.title,
-        ingredients: res.data.ingredients,
-        instructions: res.data.instructions,
-        category: res.data.category,
-        photoUrl: res.data.photoUrl,
-        cookingTime: res.data.cookingTime,
-      });
+      try {
+        const res = await axios.get(`/api/recipes/${id}`);
+
+        setFormData({
+          title: res.data.title,
+          ingredients: res.data.ingredients,
+          instructions: res.data.instructions,
+          category: res.data.category,
+          photoUrl: res.data.photoUrl,
+          cookingTime: res.data.cookingTime,
+        });
+      } catch (err) {
+        setError("Failed to load recipe");
+      }
     };
+
     fetchRecipe();
   }, [id]);
 
-  if (!formData) return <div>Loading...</div>;
-
   return (
     <div className="max-w-2xl mx-auto p-4">
-<<<<<<< HEAD
-      <h1 className="text-2xl font-bold">EditRecipe</h1>
-=======
-      <h1 className="text-2xl font-bold">Edit Recipe</h1>
->>>>>>> de2c54712568ec9c477c5bbf1053bb72c9244c21
+      <h1 className="text-2xl font-bold mb-4">Edit Recipe</h1>
+
+      {error && (
+        <div className="bg-red-100 text-red-700 p-2 rounded mb-4">
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Title */}
         <div>
           <label className="block text-gray-700">Title</label>
           <input
@@ -118,52 +116,64 @@ const EditRecipe = () => {
             required
           />
         </div>
+
+        {/* Ingredients */}
         <div>
           <label className="block text-gray-700">Ingredients</label>
+
           {formData.ingredients.map((ingredient, index) => (
-            <div key={index}>
+            <div key={index} className="flex gap-2 mb-2">
               <input
                 type="text"
                 value={ingredient}
-                onChange={(e) => handleIngredientChange(index, e.target.value)}
+                onChange={(e) =>
+                  handleIngredientChange(index, e.target.value)
+                }
                 className="w-full p-2 border rounded"
                 placeholder={`Ingredient ${index + 1}`}
                 required
               />
+
               {formData.ingredients.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeIngredient(index)}
-                  className="ml-2 text-red-500 hover:text-red-700"
+                  className="text-red-500 hover:text-red-700"
                 >
                   Remove
                 </button>
               )}
             </div>
           ))}
+
           <button
             type="button"
-            className="text-blue-500 hover:underline"
             onClick={addIngredient}
+            className="text-blue-500 hover:underline"
           >
             Add Ingredient
           </button>
         </div>
+
+        {/* Instructions */}
         <div>
           <label className="block text-gray-700">Instructions</label>
           <textarea
-            type="text"
             value={formData.instructions}
-            onChange={(e) => handleInputChange("instructions", e.target.value)}
+            onChange={(e) =>
+              handleInputChange("instructions", e.target.value)
+            }
             className="w-full p-2 border rounded"
             required
           />
         </div>
+
+        {/* Category */}
         <div>
           <label className="block text-gray-700">Category</label>
           <select
-            onChange={(e) => handleInputChange("category", e.target.value)}
             value={formData.category}
+            onChange={(e) => handleInputChange("category", e.target.value)}
             className="w-full p-2 border rounded"
             required
           >
@@ -177,29 +187,39 @@ const EditRecipe = () => {
             <option value="Snack">Snack</option>
           </select>
         </div>
+
+        {/* Cooking Time */}
         <div>
-          <label className="block text-gray-700">Cooking Time (minutes) </label>
+          <label className="block text-gray-700">
+            Cooking Time (minutes)
+          </label>
           <input
             type="number"
             value={formData.cookingTime}
-            onChange={(e) => handleInputChange("cookingTime", e.target.value)}
+            onChange={(e) =>
+              handleInputChange("cookingTime", e.target.value)
+            }
             className="w-full p-2 border rounded"
-            placeholder="e.g., 30"
             required
-            min={0}
+            min={1}
           />
         </div>
+
+        {/* Photo URL */}
         <div>
-          <label className="block text-gray-700">Photo Url </label>
+          <label className="block text-gray-700">Photo URL</label>
           <input
             type="text"
             value={formData.photoUrl}
-            onChange={(e) => handleInputChange("photoUrl", e.target.value)}
+            onChange={(e) =>
+              handleInputChange("photoUrl", e.target.value)
+            }
             className="w-full p-2 border rounded"
-            placeholder="url"
             required
           />
         </div>
+
+        {/* Submit */}
         <button
           className={`bg-blue-500 text-white p-2 rounded hover:bg-blue-600 ${
             loading ? "opacity-50 cursor-not-allowed" : ""
