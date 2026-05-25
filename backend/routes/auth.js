@@ -1,260 +1,193 @@
 import express from "express";
-import User from "../models/User.js";
-import Recipe from "../models/Recipe.js";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { protect } from "../middleware/auth.js";
+import User from "../models/User.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const authAttempts = new Map();
-
-const AUTH_WINDOW_MS = 15 * 60 * 1000;
-
-const AUTH_MAX_ATTEMPTS = 25;
-
-// Rate Limiter
-const authRateLimit = (req, res, next) => {
-  const key = req.ip || "unknown";
-
-  const now = Date.now();
-
-  const record = authAttempts.get(key) || {
-    count: 0,
-    resetAt: now + AUTH_WINDOW_MS,
-  };
-
-  if (now > record.resetAt) {
-    record.count = 0;
-    record.resetAt = now + AUTH_WINDOW_MS;
-  }
-
-  record.count += 1;
-
-  authAttempts.set(key, record);
-
-  if (record.count > AUTH_MAX_ATTEMPTS) {
-    return res.status(429).json({
-      message:
-        "Too many authentication attempts. Please try again later.",
-    });
-  }
-
-  return next();
-};
-
-const isValidPassword = (password) =>
-  typeof password === "string" && password.length >= 8;
-
-// Generate JWT
-const generateToken = (id) => {
-  return jwt.sign(
-    { id },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: "30d",
-    }
-  );
-};
-
-// Register
-router.post("/register", authRateLimit, async (req, res) => {
-  const username = (req.body.username || "").trim();
-
-  const email = (req.body.email || "")
-    .trim()
-    .toLowerCase();
-
-  const password = req.body.password;
-
+// REGISTER
+router.post("/register", async (req, res) => {
   try {
-    if (!username || !email || !password) {
-      return res.status(400).json({
-        message: "Please fill all fields",
-      });
-    }
 
-    if (!EMAIL_REGEX.test(email)) {
-      return res.status(400).json({
-        message: "Please enter a valid email",
-      });
-    }
-
-    if (!isValidPassword(password)) {
-      return res.status(400).json({
-        message:
-          "Password must be at least 8 characters long",
-      });
-    }
-
-    const userExists = await User.findOne({ email });
-
-    if (userExists) {
-      return res.status(400).json({
-        message: "User already exists",
-      });
-    }
-
-    const user = await User.create({
+    const {
       username,
       email,
       password,
-    });
+    } = req.body;
 
-    const token = generateToken(user._id);
-
-    return res.status(201).json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      token,
-    });
-  } catch (err) {
-    console.error(err);
-
-    return res.status(500).json({
-      message: "Server error",
-    });
-  }
-});
-
-// Login
-router.post("/login", authRateLimit, async (req, res) => {
-  const email = (req.body.email || "")
-    .trim()
-    .toLowerCase();
-
-  const password = req.body.password;
-
-  try {
-    if (!EMAIL_REGEX.test(email) || typeof password !== "string") {
+    // Validation
+    if (
+      !username ||
+      !email ||
+      !password
+    ) {
       return res.status(400).json({
-        message: "Invalid credentials",
+        message:
+          "All fields are required",
       });
     }
 
-    const user = await User.findOne({ email });
+    // Check existing user
+    const existingUser =
+      await User.findOne({
+        email,
+      });
 
-    if (!user || !(await user.matchPassword(password))) {
-      return res.status(401).json({
-        message: "Invalid credentials",
+    if (existingUser) {
+      return res.status(400).json({
+        message:
+          "User already exists",
       });
     }
 
-    const token = generateToken(user._id);
+    // Hash password
+    const salt =
+      await bcrypt.genSalt(10);
 
-    return res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
+    const hashedPassword =
+      await bcrypt.hash(
+        password,
+        salt
+      );
+
+    // Create user
+    const user =
+      await User.create({
+        username,
+        email,
+        password:
+          hashedPassword,
+      });
+
+    // JWT token
+    const token = jwt.sign(
+      {
+        id: user._id,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    // Response
+    res.status(201).json({
       token,
+      user: {
+        _id: user._id,
+        username:
+          user.username,
+        email: user.email,
+      },
     });
-  } catch (err) {
-    console.error(err);
 
-    return res.status(500).json({
-      message: "Server error",
-    });
-  }
-});
+  } catch (error) {
 
-// Current User
-router.get("/me", protect, async (req, res) => {
-  return res.status(200).json(req.user);
-});
-
-// Add Favorite
-router.post("/favorites/:recipeId", protect, async (req, res) => {
-  console.log("Favorite route hit");
-
-  try {
-    const user = await User.findById(req.user._id);
-
-    // Initialize favorites if missing
-    if (!user.favorites) {
-      user.favorites = [];
-    }
-
-    const recipeId = req.params.recipeId;
-
-    const alreadyFavorite = user.favorites.some(
-      (fav) => fav.toString() === recipeId
+    console.error(
+      "Register Error:",
+      error
     );
 
-    if (!alreadyFavorite) {
-      user.favorites.push(recipeId);
+    res.status(500).json({
+      message:
+        "Server error",
+    });
+  }
+});
 
-      await user.save();
+// LOGIN
+router.post("/login", async (req, res) => {
+  try {
+
+    const {
+      email,
+      password,
+    } = req.body;
+
+    const user =
+      await User.findOne({
+        email,
+      });
+
+    if (!user) {
+      return res.status(400).json({
+        message:
+          "Invalid credentials",
+      });
     }
 
-    const updatedUser = await User.findById(
-      req.user._id
-    ).populate("favorites");
+    const isMatch =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
 
-    console.log(
-      "Favorites Updated:",
-      updatedUser.favorites
+    if (!isMatch) {
+      return res.status(400).json({
+        message:
+          "Invalid credentials",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
     );
 
-    return res.json(updatedUser.favorites);
-  } catch (error) {
-    console.error("Favorite Error:", error);
-
-    return res.status(500).json({
-      message: "Server error",
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        username:
+          user.username,
+        email: user.email,
+      },
     });
-  }
-});
 
-// Remove Favorite
-router.delete("/favorites/:recipeId", protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
+  } catch (error) {
 
-    if (!user.favorites) {
-      user.favorites = [];
-    }
-
-    user.favorites = user.favorites.filter(
-      (fav) => fav.toString() !== req.params.recipeId
+    console.error(
+      "Login Error:",
+      error
     );
 
-    await user.save();
-
-    const updatedUser = await User.findById(
-      req.user._id
-    ).populate("favorites");
-
-    return res.json(updatedUser.favorites);
-  } catch (error) {
-    console.error("Remove Favorite Error:", error);
-
-    return res.status(500).json({
-      message: "Server error",
+    res.status(500).json({
+      message:
+        "Server error",
     });
   }
 });
 
-// Get Favorites
-router.get("/favorites", protect, async (req, res) => {
-  try {
-    const user = await User.findById(
-      req.user._id
-    ).populate("favorites");
+// CURRENT USER
+router.get(
+  "/me",
+  authMiddleware,
+  async (req, res) => {
+    try {
 
-    if (!user.favorites) {
-      user.favorites = [];
+      const user =
+        await User.findById(
+          req.user.id
+        ).select("-password");
+
+      res.json(user);
+
+    } catch (error) {
+
+      console.error(error);
+
+      res.status(500).json({
+        message:
+          "Server error",
+      });
     }
-
-    return res.json(user.favorites);
-  } catch (error) {
-    console.error("Get Favorites Error:", error);
-
-    return res.status(500).json({
-      message: "Server error",
-    });
   }
-});
+);
 
 export default router;

@@ -1,106 +1,134 @@
-import React, { useContext, useEffect, useState } from "react";
 import axios from "axios";
-import { AuthContext } from "../context/AuthContext";
+import React, {
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import { Link } from "react-router-dom";
 
-const Profile = () => {
-  const { user } = useContext(AuthContext);
+import { AuthContext } from "../context/AuthContext";
 
-  const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(true);
+const Profile = () => {
+
+  const { user } =
+    useContext(AuthContext);
+
+  const [recipes, setRecipes] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
 
   useEffect(() => {
-    const fetchMyRecipes = async () => {
-      try {
-        const res = await axios.get("/api/recipes");
 
-        const myRecipes = res.data.filter(
-          (recipe) => recipe.createdBy === user?._id
-        );
+    const fetchRecipes =
+      async () => {
 
-        setRecipes(myRecipes);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
+        try {
 
-    if (user) {
-      fetchMyRecipes();
-    }
-  }, [user]);
+          const token =
+            localStorage.getItem(
+              "token"
+            );
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-lg text-slate-600 dark:text-slate-300">
-          Please login to view profile.
-        </p>
-      </div>
-    );
-  }
+          const res =
+            await axios.get(
+              `${import.meta.env.VITE_API_URL}/api/recipes/user/my-recipes`,
+              {
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+          setRecipes(res.data);
+
+        } catch (error) {
+
+          console.error(error);
+
+        } finally {
+
+          setLoading(false);
+        }
+      };
+
+    fetchRecipes();
+
+  }, []);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 transition-colors duration-300">
-      
-      {/* Profile Header */}
-      <div className="mb-10 overflow-hidden rounded-3xl bg-white shadow-lg transition-colors duration-300 dark:bg-slate-900">
-        
+    <div className="mx-auto max-w-7xl px-4 py-8">
+
+      {/* PROFILE CARD */}
+      <div className="overflow-hidden rounded-[2rem] bg-white shadow-xl dark:bg-slate-900">
+
         {/* Cover */}
-        <div className="h-40 bg-gradient-to-r from-orange-400 via-orange-500 to-pink-500" />
+        <div className="h-52 bg-gradient-to-r from-orange-500 via-pink-500 to-orange-400"></div>
 
-        <div className="relative px-6 pb-6">
-          
-          {/* Avatar + User Info */}
-          <div className="-mt-16 flex items-end gap-5">
-            <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-orange-500 text-4xl font-bold text-white shadow-lg dark:border-slate-900">
-              {user.username?.charAt(0).toUpperCase()}
-            </div>
+        {/* User Info */}
+        <div className="relative px-8 pb-8">
 
-            <div className="pb-3">
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                {user.username}
-              </h1>
+          <div className="absolute -top-16 flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-orange-500 text-5xl font-bold text-white shadow-xl dark:border-slate-900">
+            {user?.username
+              ?.charAt(0)
+              ?.toUpperCase()}
+          </div>
 
-              <p className="text-slate-500 dark:text-slate-300">
-                {user.email}
-              </p>
-            </div>
+          <div className="pt-20">
+
+            <h1 className="text-4xl font-black text-slate-900 dark:text-white">
+              {user?.username}
+            </h1>
+
+            <p className="mt-2 text-lg text-slate-500 dark:text-slate-300">
+              {user?.email}
+            </p>
           </div>
 
           {/* Stats */}
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            
-            {/* Recipes Added */}
-            <div className="rounded-2xl bg-orange-50 p-5 text-center transition-colors duration-300 dark:bg-slate-800">
-              <h2 className="text-3xl font-bold text-orange-500">
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+
+            <div className="rounded-3xl bg-orange-50 p-8 text-center dark:bg-orange-500/10">
+              <h2 className="text-5xl font-black text-orange-500">
                 {recipes.length}
               </h2>
 
-              <p className="mt-1 text-slate-600 dark:text-slate-300">
+              <p className="mt-2 text-slate-600 dark:text-slate-300">
                 Recipes Added
               </p>
             </div>
 
-            {/* Breakfast */}
-            <div className="rounded-2xl bg-pink-50 p-5 text-center transition-colors duration-300 dark:bg-slate-800">
-              <h2 className="text-3xl font-bold text-pink-500">
-                {recipes.filter((r) => r.category === "Breakfast").length}
+            <div className="rounded-3xl bg-pink-50 p-8 text-center dark:bg-pink-500/10">
+              <h2 className="text-5xl font-black text-pink-500">
+                {
+                  recipes.filter(
+                    (r) =>
+                      r.category ===
+                      "Breakfast"
+                  ).length
+                }
               </h2>
 
-              <p className="mt-1 text-slate-600 dark:text-slate-300">
+              <p className="mt-2 text-slate-600 dark:text-slate-300">
                 Breakfast Recipes
               </p>
             </div>
 
-            {/* Dinner */}
-            <div className="rounded-2xl bg-amber-50 p-5 text-center transition-colors duration-300 dark:bg-slate-800">
-              <h2 className="text-3xl font-bold text-amber-500">
-                {recipes.filter((r) => r.category === "Dinner").length}
+            <div className="rounded-3xl bg-yellow-50 p-8 text-center dark:bg-yellow-500/10">
+              <h2 className="text-5xl font-black text-yellow-500">
+                {
+                  recipes.filter(
+                    (r) =>
+                      r.category ===
+                      "Dinner"
+                  ).length
+                }
               </h2>
 
-              <p className="mt-1 text-slate-600 dark:text-slate-300">
+              <p className="mt-2 text-slate-600 dark:text-slate-300">
                 Dinner Recipes
               </p>
             </div>
@@ -108,81 +136,84 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* My Recipes Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-          My Recipes
-        </h2>
+      {/* MY RECIPES */}
+      <div className="mt-14">
 
-        <Link
-          to="/add-recipe"
-          className="rounded-full bg-orange-500 px-5 py-2 font-medium text-white shadow transition hover:bg-orange-600"
-        >
-          + Add Recipe
-        </Link>
-      </div>
+        <div className="mb-8 flex items-center justify-between">
 
-      {/* Loading */}
-      {loading ? (
-        <div className="py-20 text-center">
-          <p className="text-lg text-slate-500 dark:text-slate-300">
-            Loading recipes...
-          </p>
-        </div>
-      ) : recipes.length === 0 ? (
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white">
+            My Recipes
+          </h2>
 
-        /* Empty State */
-        <div className="rounded-3xl bg-white p-10 text-center shadow transition-colors duration-300 dark:bg-slate-900">
-          <p className="text-lg text-slate-500 dark:text-slate-300">
-            No recipes added yet.
-          </p>
+          <Link to="/add-recipe">
+            <button className="rounded-full bg-orange-500 px-8 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-orange-600">
+              + Add Recipe
+            </button>
+          </Link>
         </div>
 
-      ) : (
+        {loading ? (
 
-        /* Recipe Grid */
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((recipe) => (
-            <Link
-              key={recipe._id}
-              to={`/recipe/${recipe._id}`}
-              className="group overflow-hidden rounded-3xl bg-white shadow transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-slate-900"
-            >
-              
-              {/* Image */}
-              <div className="overflow-hidden">
+          <div className="py-20 text-center">
+            <p className="text-slate-500 dark:text-slate-300">
+              Loading recipes...
+            </p>
+          </div>
+
+        ) : recipes.length === 0 ? (
+
+          <div className="rounded-[2rem] bg-white p-16 text-center shadow-lg dark:bg-slate-900">
+            <p className="text-xl text-slate-500 dark:text-slate-300">
+              No recipes added yet.
+            </p>
+          </div>
+
+        ) : (
+
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+
+            {recipes.map((recipe) => (
+
+              <Link
+                key={recipe._id}
+                to={`/recipe/${recipe._id}`}
+                className="group overflow-hidden rounded-[2rem] bg-white shadow-lg transition hover:-translate-y-2 hover:shadow-2xl dark:bg-slate-900"
+              >
+
                 <img
-                   src={
-    recipe.photoUrl.startsWith("http")
-      ? recipe.photoUrl
-      : `${import.meta.env.VITE_API_URL}${recipe.photoUrl}`
-  }
+                  src={
+                    recipe.photoUrl.startsWith(
+                      "http"
+                    )
+                      ? recipe.photoUrl
+                      : `${import.meta.env.VITE_API_URL}${recipe.photoUrl}`
+                  }
                   alt={recipe.title}
-                  className="h-56 w-full object-cover transition duration-500 group-hover:scale-105"
+                  className="h-64 w-full object-cover transition duration-700 group-hover:scale-110"
                 />
-              </div>
 
-              {/* Content */}
-              <div className="p-5">
-                
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-600 dark:bg-orange-500/20 dark:text-orange-300">
-                    {recipe.category}
-                  </span>
+                <div className="p-6">
 
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {recipe.cookingTime} mins
-                  </span>
+                  <div className="mb-3 flex items-center justify-between">
+
+                    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-600 dark:bg-orange-500/20 dark:text-orange-300">
+                      {recipe.category}
+                    </span>
+
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      ⏱ {recipe.cookingTime} mins
+                    </span>
+                  </div>
+
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {recipe.title}
+                  </h3>
                 </div>
-
-                <h3 className="text-xl font-bold text-slate-900 transition group-hover:text-orange-500 dark:text-white">
-                  {recipe.title}
-                </h3>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,416 +1,218 @@
 import express from "express";
 import Recipe from "../models/Recipe.js";
-import { protect } from "../middleware/auth.js";
-import upload from "../middleware/upload.js";
+import authMiddleware from "../middleware/authMiddleware.js";
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-const ALLOWED_CATEGORIES = [
-  "Breakfast",
-  "Lunch",
-  "Dinner",
-  "Dessert",
-  "Snack",
-];
+//
+// GET ALL RECIPES
+//
+router.get("/", async (req, res) => {
+  try {
 
-// Normalize Recipe Input
-const normalizeRecipeInput = (body = {}) => {
-  const title =
-    typeof body.title === "string"
-      ? body.title.trim()
-      : "";
+    const category = req.query.category;
 
-  const instructions =
-    typeof body.instructions === "string"
-      ? body.instructions.trim()
-      : "";
+    let filter = {};
 
-  const category =
-    typeof body.category === "string"
-      ? body.category.trim()
-      : "";
-
-  const cookingTime = Number(body.cookingTime);
-
-  let ingredients = [];
-
-  if (typeof body.ingredients === "string") {
-    try {
-      ingredients = JSON.parse(body.ingredients);
-    } catch {
-      ingredients = [];
+    if (category && category !== "All") {
+      filter.category = category;
     }
-  } else if (Array.isArray(body.ingredients)) {
-    ingredients = body.ingredients;
+
+    const recipes = await Recipe.find(filter)
+      .populate(
+        "createdBy",
+        "username email"
+      )
+      .sort({
+        createdAt: -1,
+      });
+
+    res.json(recipes);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      message:
+        "Failed to fetch recipes",
+    });
   }
+});
 
-  ingredients = ingredients
-    .map((ingredient) =>
-      typeof ingredient === "string"
-        ? ingredient.trim()
-        : ""
-    )
-    .filter(Boolean);
+//
+// GET SINGLE RECIPE
+//
+router.get("/:id", async (req, res) => {
+  try {
 
-  return {
-    title,
-    ingredients,
-    instructions,
-    category,
-    cookingTime,
-  };
-};
+    const recipe =
+      await Recipe.findById(
+        req.params.id
+      ).populate(
+        "createdBy",
+        "username email"
+      );
 
-// Validate Recipe
-const validateRecipe = ({
-  title,
-  ingredients,
-  instructions,
-  category,
-  cookingTime,
-}) => {
-  if (
-    !title ||
-    !instructions ||
-    !category ||
-    !Number.isFinite(cookingTime)
-  ) {
-    return "Please fill all fields";
+    if (!recipe) {
+      return res.status(404).json({
+        message:
+          "Recipe not found",
+      });
+    }
+
+    res.json(recipe);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      message:
+        "Failed to fetch recipe",
+    });
   }
+});
 
-  if (!ingredients.length) {
-    return "Please add at least one ingredient";
-  }
-
-  if (!ALLOWED_CATEGORIES.includes(category)) {
-    return "Invalid recipe category";
-  }
-
-  if (cookingTime <= 0 || cookingTime > 720) {
-    return "Cooking time must be between 1 and 720 minutes";
-  }
-
-  return null;
-};
-
+//
 // CREATE RECIPE
+//
 router.post(
   "/",
-  protect,
+  authMiddleware,
   upload.single("image"),
   async (req, res) => {
     try {
 
-      console.log("BODY:", req.body);
-      console.log("FILE:", req.file);
+      const {
+        title,
+        ingredients,
+        instructions,
+        category,
+        cookingTime,
+      } = req.body;
 
-      if (!req.file) {
-        return res.status(400).json({
-          message: "Please upload an image",
-        });
+      let parsedIngredients = [];
+
+      if (ingredients) {
+
+        parsedIngredients =
+          JSON.parse(ingredients);
       }
 
-      const recipeInput = normalizeRecipeInput(req.body);
+      const photoUrl = req.file
+        ? `/uploads/${req.file.filename}`
+        : "";
 
-      const validationMessage =
-        validateRecipe(recipeInput);
-
-      if (validationMessage) {
-        return res.status(400).json({
-          message: validationMessage,
+      const recipe =
+        await Recipe.create({
+          title,
+          ingredients:
+            parsedIngredients,
+          instructions,
+          category,
+          cookingTime,
+          photoUrl,
+          createdBy:
+            req.user.id,
         });
-      }
 
-      const recipe = await Recipe.create({
-        ...recipeInput,
+      res.status(201).json(recipe);
 
-        photoUrl:
-          "/uploads/" + req.file.filename,
+    } catch (error) {
 
-        createdBy: req.user._id,
-      });
+      console.error(
+        "Create Recipe Error:",
+        error
+      );
 
-      return res.status(201).json(recipe);
-
-    } catch (err) {
-
-      console.error("CREATE RECIPE ERROR:");
-      console.error(err);
-
-      return res.status(500).json({
-        message: err.message || "Server error",
+      res.status(500).json({
+        message:
+          "Failed to create recipe",
       });
     }
   }
 );
 
-// GET ALL RECIPES
-router.get("/", async (req, res) => {
-  try {
-
-    const { category } = req.query;
-
-    const query =
-      category &&
-      ALLOWED_CATEGORIES.includes(category)
-        ? { category }
-        : {};
-
-    const recipes = await Recipe.find(query)
-      .sort({ createdAt: -1 });
-
-    return res.json(recipes);
-
-  } catch (error) {
-
-    return res.status(500).json({
-      message: "Server error",
-    });
-  }
-});
-
-// GET SINGLE RECIPE
-router.get("/:id", async (req, res) => {
-  try {
-
-    const recipe = await Recipe.findById(
-      req.params.id
-    );
-
-    if (!recipe) {
-      return res.status(404).json({
-        message: "Recipe not found",
-      });
-    }
-
-    return res.json(recipe);
-
-  } catch (err) {
-
-    return res.status(500).json({
-      message: "Server error",
-    });
-  }
-});
-
-// UPDATE RECIPE
-router.put("/:id", protect, async (req, res) => {
-  try {
-
-    const recipeInput =
-      normalizeRecipeInput(req.body);
-
-    const recipe = await Recipe.findById(
-      req.params.id
-    );
-
-    if (!recipe) {
-      return res.status(404).json({
-        message: "Recipe not found",
-      });
-    }
-
-    if (
-      recipe.createdBy.toString() !==
-      req.user._id.toString()
-    ) {
-      return res.status(401).json({
-        message: "Not authorized",
-      });
-    }
-
-    const validationMessage =
-      validateRecipe(recipeInput);
-
-    if (validationMessage) {
-      return res.status(400).json({
-        message: validationMessage,
-      });
-    }
-
-    recipe.title = recipeInput.title;
-    recipe.ingredients =
-      recipeInput.ingredients;
-    recipe.instructions =
-      recipeInput.instructions;
-    recipe.category =
-      recipeInput.category;
-    recipe.cookingTime =
-      recipeInput.cookingTime;
-
-    await recipe.save();
-
-    return res.json(recipe);
-
-  } catch (err) {
-
-    return res.status(500).json({
-      message: "Server error",
-    });
-  }
-});
-
-// DELETE RECIPE
-router.delete("/:id", protect, async (req, res) => {
-  try {
-
-    const recipe = await Recipe.findById(
-      req.params.id
-    );
-
-    if (!recipe) {
-      return res.status(404).json({
-        message: "Recipe not found",
-      });
-    }
-
-    if (
-      recipe.createdBy.toString() !==
-      req.user._id.toString()
-    ) {
-      return res.status(401).json({
-        message: "Not authorized",
-      });
-    }
-
-    await recipe.deleteOne();
-
-    return res.json({
-      message: "Recipe deleted",
-    });
-
-  } catch (err) {
-
-    return res.status(500).json({
-      message: "Server error",
-    });
-  }
-});
-
-// ADD COMMENT
-router.post(
-  "/:id/comments",
-  protect,
+//
+// GET USER RECIPES
+//
+router.get(
+  "/user/my-recipes",
+  authMiddleware,
   async (req, res) => {
     try {
 
-      const recipe =
-        await Recipe.findById(req.params.id);
-
-      if (!recipe) {
-        return res.status(404).json({
-          message: "Recipe not found",
+      const recipes =
+        await Recipe.find({
+          createdBy: req.user.id,
+        }).sort({
+          createdAt: -1,
         });
-      }
 
-      const newComment = {
-        user: req.user.username,
-        text: req.body.text,
-      };
-
-      recipe.comments.push(newComment);
-
-      await recipe.save();
-
-      return res.json(recipe.comments);
+      res.json(recipes);
 
     } catch (error) {
 
       console.error(error);
 
-      return res.status(500).json({
-        message: "Server error",
+      res.status(500).json({
+        message:
+          "Failed to fetch user recipes",
       });
     }
   }
 );
 
-// ADD RATING
-router.post(
-  "/:id/rate",
-  protect,
+//
+// DELETE RECIPE
+//
+router.delete(
+  "/:id",
+  authMiddleware,
   async (req, res) => {
     try {
 
-      const { value } = req.body;
+      const recipe =
+        await Recipe.findById(
+          req.params.id
+        );
+
+      if (!recipe) {
+        return res.status(404).json({
+          message:
+            "Recipe not found",
+        });
+      }
 
       if (
-        !value ||
-        value < 1 ||
-        value > 5
+        recipe.createdBy.toString() !==
+        req.user.id
       ) {
-        return res.status(400).json({
+        return res.status(403).json({
           message:
-            "Rating must be between 1 and 5",
+            "Unauthorized",
         });
       }
 
-      const recipe =
-        await Recipe.findById(req.params.id);
+      await recipe.deleteOne();
 
-      if (!recipe) {
-        return res.status(404).json({
-          message: "Recipe not found",
-        });
-      }
-
-      // IMPORTANT FIX
-      if (!recipe.ratings) {
-        recipe.ratings = [];
-      }
-
-      // Check existing rating
-      const existingRating =
-        recipe.ratings.find(
-          (rating) =>
-            rating.user.toString() ===
-            req.user._id.toString()
-        );
-
-      if (existingRating) {
-
-        existingRating.value = value;
-
-      } else {
-
-        recipe.ratings.push({
-          user: req.user._id,
-          value,
-        });
-      }
-
-      // Calculate average
-      const total =
-        recipe.ratings.reduce(
-          (sum, rating) =>
-            sum + rating.value,
-          0
-        );
-
-      recipe.averageRating =
-        total / recipe.ratings.length;
-
-      await recipe.save();
-
-      return res.json({
-        averageRating:
-          recipe.averageRating,
-
-        ratings:
-          recipe.ratings.length,
+      res.json({
+        message:
+          "Recipe deleted",
       });
 
     } catch (error) {
 
-      console.error("RATING ERROR:");
       console.error(error);
 
-      return res.status(500).json({
+      res.status(500).json({
         message:
-          error.message || "Server error",
+          "Failed to delete recipe",
       });
     }
   }
-);  
+);
 
 export default router;
