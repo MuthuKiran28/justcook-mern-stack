@@ -52,19 +52,7 @@ app.use("/api/recipes", recipesRoutes);
 app.use("/uploads", express.static("uploads"));
 
 // ---- Serve frontend in production ----
-const __dirname = path.resolve();
 
-if (process.env.NODE_ENV === "production") {
-  const frontendPath = path.join(__dirname, "../frontend/dist");
-
-  // Serve React static files
-  app.use(express.static(frontendPath));
-
-  // Fallback for React Router
-  app.use((req, res) => {
-    res.sendFile(path.join(frontendPath, "index.html"));
-  });
-}
 
 // ---- Start server ----
 const start = async () => {
