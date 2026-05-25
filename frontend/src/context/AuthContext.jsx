@@ -5,33 +5,45 @@ import {
   useMemo,
   useState,
 } from "react";
+
 import axios from "axios";
 
 export const AuthContext = createContext();
 
+const API = import.meta.env.VITE_API_URL;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
 
-  // Set or remove token from axios headers
-  const setTokenHeader = useCallback((token) => {
-    if (token) {
-      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common.Authorization;
-    }
-  }, []);
+  const [authLoading, setAuthLoading] =
+    useState(true);
 
-  // Logout function
+  // Set token in axios headers
+  const setTokenHeader = useCallback(
+    (token) => {
+      if (token) {
+        axios.defaults.headers.common.Authorization =
+          `Bearer ${token}`;
+      } else {
+        delete axios.defaults.headers.common.Authorization;
+      }
+    },
+    []
+  );
+
+  // Logout
   const logout = useCallback(() => {
     localStorage.removeItem("token");
+
     setTokenHeader(null);
+
     setUser(null);
   }, [setTokenHeader]);
 
   // Check logged in user on app load
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("token");
 
     if (!token) {
       setAuthLoading(false);
@@ -41,11 +53,16 @@ export const AuthProvider = ({ children }) => {
     setTokenHeader(token);
 
     axios
-      .get("/api/auth/me")
+      .get(`${API}/api/auth/me`)
       .then((res) => {
         setUser(res.data);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error(
+          "Auth check failed:",
+          error
+        );
+
         logout();
       })
       .finally(() => {
@@ -56,13 +73,21 @@ export const AuthProvider = ({ children }) => {
   // Login
   const login = useCallback(
     async (email, password) => {
-      const res = await axios.post("/api/auth/login", {
-        email,
-        password,
-      });
+      const res = await axios.post(
+        `${API}/api/auth/login`,
+        {
+          email,
+          password,
+        }
+      );
 
-      localStorage.setItem("token", res.data.token);
+      localStorage.setItem(
+        "token",
+        res.data.token
+      );
+
       setTokenHeader(res.data.token);
+
       setUser(res.data);
     },
     [setTokenHeader]
@@ -70,15 +95,27 @@ export const AuthProvider = ({ children }) => {
 
   // Register
   const register = useCallback(
-    async (username, email, password) => {
-      const res = await axios.post("/api/auth/register", {
-        username,
-        email,
-        password,
-      });
+    async (
+      username,
+      email,
+      password
+    ) => {
+      const res = await axios.post(
+        `${API}/api/auth/register`,
+        {
+          username,
+          email,
+          password,
+        }
+      );
 
-      localStorage.setItem("token", res.data.token);
+      localStorage.setItem(
+        "token",
+        res.data.token
+      );
+
       setTokenHeader(res.data.token);
+
       setUser(res.data);
     },
     [setTokenHeader]
@@ -93,7 +130,13 @@ export const AuthProvider = ({ children }) => {
       register,
       logout,
     }),
-    [user, authLoading, login, register, logout]
+    [
+      user,
+      authLoading,
+      login,
+      register,
+      logout,
+    ]
   );
 
   return (
